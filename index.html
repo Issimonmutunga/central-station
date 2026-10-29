@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Central Station</title>
+  <meta name="description" content="Find, download and visualize open earth-science datasets.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%230b57d0'/%3E%3Cpath d='M3 12h18M12 1c3 3.2 4.5 7 4.5 11S15 19.8 12 23M12 1C9 4.2 7.5 8 7.5 12S9 19.8 12 23' stroke='white' stroke-width='1.6' fill='none'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400..700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,400..700&family=Roboto+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=block">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn only-mobile" id="menuBtn" aria-label="Menu"><span class="ms">menu</span></button>
+    <a class="brand" href="#/catalog">
+      <span class="brand-mark"><span class="ms">public</span></span>
+      <span class="brand-name">Central Station</span>
+    </a>
+    <label class="search">
+      <span class="ms">search</span>
+      <input id="search" type="search" placeholder="Search datasets, variables, scenarios…  e.g. “SSP585 rainfall”" autocomplete="off">
+      <kbd>/</kbd>
+    </label>
+    <div class="topbar-end">
+      <span class="status-chip" id="serverChip" title="Local server status"><span class="dot"></span><span class="label">Checking…</span></span>
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle dark mode"><span class="ms">dark_mode</span></button>
+    </div>
+  </header>
+
+  <nav class="rail" id="rail">
+    <a href="#/catalog" data-view="catalog"><span class="pill"><span class="ms">explore</span></span><span>Catalog</span></a>
+    <a href="#/downloads" data-view="downloads"><span class="pill"><span class="ms">download</span><span class="badge" id="dlBadge" hidden></span></span><span>Downloads</span></a>
+    <a href="#/visualize" data-view="visualize"><span class="pill"><span class="ms">map</span></span><span>Visualize</span></a>
+    <a href="#/about" data-view="about"><span class="pill"><span class="ms">gavel</span></span><span>Licences</span></a>
+  </nav>
+
+  <main id="main">
+    <!-- Catalog -->
+    <section class="view" id="view-catalog">
+      <div class="page">
+        <div class="hero">
+          <h1>Earth data, without the scavenger hunt</h1>
+          <p>Pick a dataset, choose scenarios and models, then download everything in one go — or drop it on the map.</p>
+        </div>
+        <div class="chip-row" id="fieldChips" role="tablist" aria-label="Earth science field"></div>
+        <div class="filter-bar">
+          <div class="chip-row" id="kindChips"></div>
+          <div class="chip-row" id="accessChips"></div>
+        </div>
+        <p class="result-count" id="resultCount"></p>
+        <div class="card-grid" id="cards"></div>
+      </div>
+    </section>
+
+    <!-- Dataset detail -->
+    <section class="view" id="view-dataset">
+      <div class="page" id="datasetPage"></div>
+    </section>
+
+    <!-- Downloads -->
+    <section class="view" id="view-downloads">
+      <div class="page">
+        <div class="page-head">
+          <div>
+            <h1>Downloads</h1>
+            <p class="muted" id="dlPath">Files are saved by the local server into the <code>downloads</code> folder.</p>
+          </div>
+          <div class="actions">
+            <button class="btn tonal" id="openFolderBtn"><span class="ms">folder_open</span>Open folder</button>
+            <button class="btn text" id="clearDoneBtn"><span class="ms">done_all</span>Clear finished</button>
+          </div>
+        </div>
+        <div id="jobList" class="list-card"></div>
+      </div>
+    </section>
+
+    <!-- Visualize -->
+    <section class="view" id="view-visualize">
+      <div class="viz">
+        <aside class="viz-panel" id="vizPanel">
+          <div class="drop" id="drop">
+            <span class="ms">upload_file</span>
+            <div><b>Drop a GeoTIFF, .tif.gz or .zip</b><br><span class="muted">or <label class="link">browse<input type="file" id="fileInput" accept=".tif,.tiff,.gz,.zip" hidden></label> · or paste a link</span></div>
+          </div>
+          <div class="url-row">
+            <input id="urlInput" class="field" placeholder="https://… .tif">
+            <button class="icon-btn filled" id="urlBtn" aria-label="Load URL"><span class="ms">arrow_forward</span></button>
+          </div>
+          <div id="vizControls" hidden>
+            <div class="section">
+              <div class="layer-head">
+                <span class="ms">layers</span>
+                <input id="layerTitle" class="ghost-input" aria-label="Layer title">
+              </div>
+              <div class="muted small" id="layerMeta"></div>
+              <div class="grid2">
+                <label class="fld" id="zipPick" hidden><span>File in archive</span><select id="zipSelect"></select></label>
+                <label class="fld" id="bandPick"><span>Band</span><select id="bandSelect"></select></label>
+              </div>
+            </div>
+            <details class="section" id="unitSection">
+              <summary><span class="ms">straighten</span>Units & values</summary>
+              <div class="grid2">
+                <label class="fld"><span>Preset</span>
+                  <select id="unitPreset">
+                    <option value="1,0,">Raw values</option>
+                    <option value="1,-273.15,°C">Kelvin → °C</option>
+                    <option value="0.1,0,">× 0.1</option>
+                    <option value="0.01,0,">× 0.01</option>
+                    <option value="0.1,-273.15,°C">CHELSA temp (×0.1 − 273.15)</option>
+                    <option value="custom">Custom…</option>
+                  </select>
+                </label>
+                <label class="fld"><span>Unit label</span><input id="unitLabel" placeholder="e.g. mm"></label>
+                <label class="fld"><span>Scale ×</span><input id="scaleIn" type="number" step="any" value="1"></label>
+                <label class="fld"><span>Offset +</span><input id="offsetIn" type="number" step="any" value="0"></label>
+                <label class="fld"><span>No-data value</span><input id="nodataIn" type="number" step="any" placeholder="auto"></label>
+              </div>
+            </details>
+            <div class="section">
+              <div class="section-title"><span class="ms">palette</span>Classes</div>
+              <div class="seg" id="modeSeg">
+                <button data-mode="classes" class="on">Classified</button>
+                <button data-mode="stretch">Continuous</button>
+              </div>
+              <div class="grid2">
+                <label class="fld" id="methodFld"><span>Method</span>
+                  <select id="methodSelect">
+                    <option value="quantile">Quantile</option>
+                    <option value="equal">Equal interval</option>
+                    <option value="jenks">Natural breaks (Jenks)</option>
+                    <option value="pretty">Pretty breaks</option>
+                    <option value="stddev">Standard deviation</option>
+                    <option value="manual">Manual</option>
+                  </select>
+                </label>
+                <label class="fld" id="countFld"><span>Classes</span>
+                  <div class="stepper"><button id="kMinus" aria-label="Fewer classes"><span class="ms">remove</span></button><output id="kOut">7</output><button id="kPlus" aria-label="More classes"><span class="ms">add</span></button></div>
+                </label>
+              </div>
+              <div class="ramp-row">
+                <button class="ramp-btn" id="rampBtn"><span class="ramp-swatch" id="rampSwatch"></span><span id="rampName">Viridis</span><span class="ms">expand_more</span></button>
+                <button class="icon-btn" id="reverseBtn" title="Reverse colours"><span class="ms">swap_horiz</span></button>
+                <div class="ramp-menu" id="rampMenu" hidden></div>
+              </div>
+              <div class="grid2">
+                <label class="fld"><span>Min</span><input id="minIn" type="number" step="any"></label>
+                <label class="fld"><span>Max</span><input id="maxIn" type="number" step="any"></label>
+              </div>
+              <button class="btn text small" id="resetRangeBtn"><span class="ms">restart_alt</span>Reset to data range</button>
+              <canvas id="histo" width="640" height="180" title="Drag the lines to move class breaks"></canvas>
+              <table class="class-table" id="classTable"></table>
+              <label class="fld"><span>Opacity</span><input type="range" id="opacityIn" min="0" max="1" step="0.05" value="0.85"></label>
+            </div>
+            <div class="section">
+              <div class="section-title"><span class="ms">ios_share</span>Export</div>
+              <div class="btn-wrap">
+                <button class="btn tonal small" id="exportPng"><span class="ms">image</span>Map image</button>
+                <button class="btn tonal small" id="exportGeo"><span class="ms">public</span>Georeferenced PNG</button>
+                <button class="btn tonal small" id="exportQgis"><span class="ms">style</span>QGIS colour map</button>
+                <button class="btn tonal small" id="exportScheme"><span class="ms">save</span>Save scheme</button>
+                <label class="btn text small"><span class="ms">folder_open</span>Load scheme<input type="file" id="schemeIn" accept=".json" hidden></label>
+              </div>
+            </div>
+          </div>
+          <div id="vizEmpty" class="viz-empty">
+            <p class="muted">Tip: in any dataset’s <b>Get data</b> list, press <span class="ms inline">map</span> to stream it here without downloading.</p>
+          </div>
+        </aside>
+        <div class="map-wrap">
+          <div id="map"></div>
+          <div class="map-chip" id="readout" hidden></div>
+          <div class="map-loading" id="mapLoading" hidden><div class="spinner"></div><span id="loadingText">Loading…</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- About / legal -->
+    <section class="view" id="view-about">
+      <div class="page narrow">
+        <h1>Licences & how this works</h1>
+        <div class="callout"><span class="ms">verified_user</span><div><b>Nothing is re-hosted.</b> Every download goes straight from the original publisher to your computer. Central Station only builds the links, so the publishers' own licences apply — each dataset page shows its licence and the citation to use.</div></div>
+        <h2>What's included</h2>
+        <ul class="bullets">
+          <li><b>Direct</b> — open files on public servers. One click (or one script) downloads them.</li>
+          <li><b>Open portal</b> — free, no account, but the publisher's portal or API is the reliable route. Step-by-step guide included.</li>
+          <li><b>Free login</b> — needs a free account (Copernicus, NASA Earthdata). Central Station never asks for or stores your credentials; it gives you the steps and generates scripts that use your own keys.</li>
+        </ul>
+        <h2>Licence notes</h2>
+        <ul class="bullets">
+          <li><b>WorldClim</b> is free for academic and other non-commercial use; redistribution and commercial use need permission from the authors.</li>
+          <li><b>Copernicus (ERA5, CMIP6 subset, CORDEX)</b> — CC BY 4.0 for most data; you accept the licence once on the CDS website.</li>
+          <li><b>NASA, NOAA</b> — U.S. Government open data; cite the dataset.</li>
+          <li><b>CHELSA, CHIRPS, Berkeley Earth, ISIMIP, TerraClimate</b> — CC BY 4.0 / CC0 — attribution required for CC BY.</li>
+          <li>Basemap © OpenStreetMap contributors (tile.openstreetmap.org, light personal use).</li>
+        </ul>
+        <h2>Running it</h2>
+        <p>Start the local helper with <code>node server.js</code> and open <code>http://localhost:8787</code>. The helper enables one-click downloads into the <code>downloads</code> folder and streaming map previews. It only talks to the open-data servers listed in the catalog.</p>
+      </div>
+    </section>
+  </main>
+
+  <div class="scrim" id="scrim" hidden></div>
+  <div class="snackbar" id="snackbar" role="status"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/geotiff@2.1.3/dist-browser/geotiff.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="js/catalog.js"></script>
+  <script src="js/viz.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
